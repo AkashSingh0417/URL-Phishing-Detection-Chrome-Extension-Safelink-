@@ -1,5 +1,46 @@
-// Feature descriptions with detailed information
-const featureDescriptions = {
+// Theme management
+let currentTheme = 'dark';
+
+// Function to toggle theme
+function toggleTheme() {
+  const root = document.documentElement;
+  const themeToggle = document.getElementById('themeToggle');
+  
+  if (currentTheme === 'dark') {
+    currentTheme = 'light';
+    root.setAttribute('data-theme', 'light');
+    themeToggle.classList.add('active');
+  } else {
+    currentTheme = 'dark';
+    root.removeAttribute('data-theme');
+    themeToggle.classList.remove('active');
+  }
+  
+  // Save theme preference
+  chrome.storage.local.set({ 'theme': currentTheme });
+}
+
+// Function to load saved theme
+async function loadTheme() {
+  try {
+    const data = await chrome.storage.local.get('theme');
+    if (data.theme) {
+      currentTheme = data.theme;
+      const root = document.documentElement;
+      const themeToggle = document.getElementById('themeToggle');
+      
+      if (currentTheme === 'light') {
+        root.setAttribute('data-theme', 'light');
+        themeToggle.classList.add('active');
+      }
+    }
+  } catch (error) {
+    console.error('Error loading theme:', error);
+  }
+}
+
+// Factors descriptions with detailed information
+const factorDescriptions = {
     'UsingIP': 'Checks if the URL uses an IP address instead of a domain name. Phishing URLs often use IP addresses to hide the actual domain.',
     'LongURL': 'Analyzes the length of the URL. Phishing URLs tend to be unusually long with many subdomains or path segments.',
     'ShortURL': 'Detects if URL shortening services are used. Phishers often use these services to mask malicious URLs.',
@@ -57,17 +98,22 @@ function getStatusDisplay(value) {
     return `<span class="status ${className}">${status} (${numValue})</span>`;
 }
 
-function analyzeFeaturesAndShowConclusion(features) {
+function analyzeFactorsAndShowConclusion(factors) {
     let legitimateCount = 0;
     let phishingCount = 0;
     let neutralCount = 0;
     
-    // Count the number of legitimate, phishing, and neutral features
-    Object.values(features).forEach(value => {
+    // Count the number of legitimate, phishing, and neutral factors
+    Object.values(factors).forEach(value => {
         if (value === 1) legitimateCount++;
         else if (value === -1) phishingCount++;
         else neutralCount++;
     });
+
+    // Update the factors summary
+    document.getElementById('legitimateCount').textContent = legitimateCount;
+    document.getElementById('phishingCount').textContent = phishingCount;
+    document.getElementById('neutralCount').textContent = neutralCount;
 
     const conclusionBox = document.getElementById('conclusionBox');
     const verdictElement = conclusionBox.querySelector('.verdict');
@@ -78,9 +124,9 @@ function analyzeFeaturesAndShowConclusion(features) {
 
     // Calculate the verdict
     let verdict, details, className;
-    const totalFeatures = Object.keys(features).length;
-    const legitimatePercentage = (legitimateCount / totalFeatures) * 100;
-    const phishingPercentage = (phishingCount / totalFeatures) * 100;
+    const totalFactors = Object.keys(factors).length;
+    const legitimatePercentage = (legitimateCount / totalFactors) * 100;
+    const phishingPercentage = (phishingCount / totalFactors) * 100;
 
     // Classify based on which percentage is higher
     if (phishingPercentage >= legitimatePercentage) {
@@ -99,66 +145,89 @@ function analyzeFeaturesAndShowConclusion(features) {
     detailsElement.textContent = details;
 }
 
-function showError(message) {
+function showError(message, isInvalidUrl = false) {
     const container = document.getElementById('featuresContainer');
-    container.innerHTML = `<div class="error-message">${message}</div>`;
     
-    // Also update conclusion box to show error state
-    const conclusionBox = document.getElementById('conclusionBox');
-    conclusionBox.classList.remove('legitimate', 'phishing', 'neutral');
-    conclusionBox.classList.add('neutral');
-    conclusionBox.querySelector('.verdict').textContent = 'Analysis Error';
-    conclusionBox.querySelector('.details').textContent = message;
+    if (isInvalidUrl) {
+        // For invalid URL, show only the specific message
+        container.innerHTML = `<div class="error-message">Please enter a valid URL (e.g., https://www.example.com).</div>`;
+        
+        // Update conclusion box for invalid URL
+        const conclusionBox = document.getElementById('conclusionBox');
+        conclusionBox.classList.remove('legitimate', 'phishing', 'neutral');
+        conclusionBox.classList.add('neutral');
+        conclusionBox.querySelector('.verdict').textContent = 'Invalid URL';
+        conclusionBox.querySelector('.details').textContent = 'Please enter a valid URL (e.g., https://www.example.com).';
+    } else {
+        // For other errors, show the original error message
+        container.innerHTML = `<div class="error-message">${message}</div>`;
+        
+        // Also update conclusion box to show error state
+        const conclusionBox = document.getElementById('conclusionBox');
+        conclusionBox.classList.remove('legitimate', 'phishing', 'neutral');
+        conclusionBox.classList.add('neutral');
+        conclusionBox.querySelector('.verdict').textContent = 'Analysis Error';
+        conclusionBox.querySelector('.details').textContent = message;
+    }
 }
 
 // Main execution
-window.addEventListener('DOMContentLoaded', function() {
+window.addEventListener('DOMContentLoaded', async function() {
+    // Load saved theme
+    await loadTheme();
+    
+    // Add theme toggle event listener
+    document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+    
     try {
         // Get URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         const url = urlParams.get('url');
-        const featuresParam = urlParams.get('features');
+        const factorsParam = urlParams.get('features');
         
-        if (!url || !featuresParam) {
-            throw new Error('Missing URL or features data');
+        if (!url || !factorsParam) {
+            showError('Missing URL or factors data', true);
+            return;
         }
 
         // Display URL
         const decodedUrl = decodeURIComponent(url);
         document.getElementById('analyzedUrl').textContent = decodedUrl;
 
-        // Parse and display features
-        let features;
+        // Parse and display factors
+        let factors;
         try {
-            features = JSON.parse(decodeURIComponent(featuresParam));
+            factors = JSON.parse(decodeURIComponent(factorsParam));
         } catch (parseError) {
-            throw new Error('Invalid feature data format');
+            showError('Invalid factors data format', true);
+            return;
         }
 
-        if (!features || typeof features !== 'object' || Object.keys(features).length === 0) {
-            throw new Error('No feature data available');
+        if (!factors || typeof factors !== 'object' || Object.keys(factors).length === 0) {
+            showError('No factors data available', true);
+            return;
         }
 
-        // Analyze features and show conclusion
-        analyzeFeaturesAndShowConclusion(features);
+        // Analyze factors and show conclusion
+        analyzeFactorsAndShowConclusion(factors);
 
-        // Sort and display features
-        const sortedFeatures = Object.entries(features).sort(([a], [b]) => a.localeCompare(b));
+        // Sort and display factors
+        const sortedFactors = Object.entries(factors).sort(([a], [b]) => a.localeCompare(b));
         const tableBody = document.getElementById('featuresTableBody');
         
         let html = '';
-        sortedFeatures.forEach(([name, value]) => {
+        sortedFactors.forEach(([name, value]) => {
             html += `
                 <tr>
                     <td>${name}</td>
                     <td>${getStatusDisplay(value)}</td>
-                    <td>${featureDescriptions[name] || ''}</td>
+                    <td>${factorDescriptions[name] || ''}</td>
                 </tr>
             `;
         });
         
         tableBody.innerHTML = html;
     } catch (error) {
-        showError(error.message);
+        showError(error.message, true);
     }
 }); 

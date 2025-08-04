@@ -3,7 +3,6 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 from sklearn import metrics
 import pickle 
 import warnings
@@ -88,5 +87,4 @@ plt.xlabel("learning_rate")
 plt.legend()
 
 # dump information to that file
-pickle.dump(gbc, open('gbc_final_model.pkl', 'wb'))
-gbc = pickle.load(open("gbc_final_model.pkl","rb"))
+pickle.dump(gbc, open('gbc_final_model.pkl', 'wb'))gbc = pickle.load(open("gbc_final_model.pkl","rb"))
