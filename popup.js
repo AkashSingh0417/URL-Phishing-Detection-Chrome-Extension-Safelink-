@@ -663,7 +663,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initGame();
   
   // Temporary: Auto-start game for testing (remove this line after testing)
-  startGame(), startGame, 6000;
+  // startGame(), startGame, 6000;
   
   try {
     const urlInput = document.getElementById('urlInput');
