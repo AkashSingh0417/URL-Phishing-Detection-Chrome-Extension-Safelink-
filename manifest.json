@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "SafeLink",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Detects potential phishing URLs using machine learning to help you browse safely",
     "author": ["PranetPednekar","AkashSingh"],
     "permissions": [
